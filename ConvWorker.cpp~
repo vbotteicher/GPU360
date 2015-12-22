@@ -1,0 +1,24 @@
+extern "C"{
+
+#include <EGL/egl.h>
+}
+#include <stdio.h>
+#include <signal.h>
+#include <execinfo.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include "convWorker.h"
+#include <GLES3/gl3.h>
+
+
+ConvWorker::ConvWorker(void)
+{   printf("Worker constructor\n");
+
+}
+
+ConvWorker::~ConvWorker()
+{   
+    printf("Worker destructor\n");
+
+}
+

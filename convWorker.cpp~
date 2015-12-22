@@ -1,0 +1,42 @@
+extern "C"{
+
+#include <EGL/egl.h>
+}
+#include <stdio.h>
+#include <signal.h>
+#include <execinfo.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include "convWorker.h"
+#include <GLES3/gl3.h>
+
+
+ConvWorker::ConvWorker(GLuint inputTex, GLuint outputTex, GLuint convProg)
+{   
+    printf("Worker constructor\n");
+    inputTexture = inputTex;
+    outputTexture = outputTex;
+    convProgram = convProg;
+   g_vertex_buffer_data = { 
+		 -1.0f,  -1.0f, 0.0f,
+		 1.0f,  -1.0f, 0.0f,
+		 -1.0f,  1.0f, 0.0f,
+		 -1.0f,  1.0f, 0.0f,
+		 1.0f,  -1.0f, 0.0f,
+		 1.0f,  1.0f, 0.0f,
+};
+    g_uv_buffer_data = {
+		0.0f, 0.0f, 
+		1.0f, 0.0f, 
+		0.0f, 1.0f, 
+		0.0f, 1.0f, 
+		1.0f, 0.0f, 
+		1.0f, 1.0f,  
+        };  
+}
+
+ConvWorker::~ConvWorker()
+{   
+    printf("Worker destructor\n");
+}
+

@@ -1,0 +1,10 @@
+#include <GLES3/gl3.h>
+class GPU360 : public ConvWorker 
+{
+public:
+    ConvWorker(Gluint inputTexture,Gluint outputTexture, Gluint convProg);
+    Draw();
+    Gluint inputTexture;
+    Gluint outputTexture;
+    Gluint convProg;
+};
