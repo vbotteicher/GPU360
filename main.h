@@ -2,9 +2,7 @@
 //#include <GL/gl.h>
 #include <GLES3/gl3.h>
 	
-#define PACK_MAX			255.0F
-#define	PACK_MIN			-256.0F
-	
+
 int w;
 int h;
 unsigned char dummyData[4*128*128];

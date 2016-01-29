@@ -1,0 +1,72 @@
+#version 300 es
+precision highp float;
+
+uniform highp float maxF;
+uniform highp float minF;
+
+uniform highp float wgtLF;
+uniform highp float wgtSmooth;
+
+uniform sampler2D smoothedTex;
+uniform sampler2D edgeMapTex;
+uniform sampler2D LFTex;
+uniform sampler2D uyTex;
+
+const vec4 bitShInv = vec4( 1.0 / (256.0 * 256.0 * 256.0), 1.0 / (256.0 * 256.0), 1.0 / 256.0, 1.0); 
+const vec4 bitSh = vec4( 256.0 * 256.0 * 256.0, 256.0 * 256.0, 256.0, 1.0 );
+const vec4 bitMsk = vec4( 0.0, 1.0 / 256.0, 1.0 / 256.0, 1.0 / 256.0 );
+
+in highp vec2 UV;
+
+vec4 Float2RGBA(float f)
+{
+   //f = (254.0/254.1211)*(f - floor(f/0.125)*0.125/255.0);
+   f = ( f - minF ) / ( maxF - minF ) ;
+   
+   vec4 res = bitSh * f;
+   vec4 tmp;
+   res = fract( res );   
+   //res -= res.xxyz * bitMsk;
+   tmp.r = res.r - res.r*bitMsk.r;
+   tmp.g = res.g - res.r*bitMsk.g;
+   tmp.b = res.b - res.g*bitMsk.b;
+   tmp.a = res.a  - res.b*bitMsk.a;
+   
+   res.x -= res.x*bitMsk.x;
+   res.y -= res.x*bitMsk.y;
+   res.z -= res.y*bitMsk.z;
+   res.w -= res.z*bitMsk.w;
+
+   return( tmp );
+} 
+
+float RGBA2Float( vec4 v ) //must call this to do computations
+{
+	float f = dot(v, bitShInv);
+	f = f * (maxF - minF) + minF;
+	return(f);
+}
+
+
+
+layout(location = 0) out vec4 color;
+
+void main()
+{
+	//note vec4 for RGBA format
+	vec4 tsmooth = round(texture( smoothedTex, UV)*255.0)/256.0;
+	vec4 tedge = round(texture( edgeMapTex, UV)*255.0)/256.0;
+	vec4 tLF = round(texture( LFTex, UV)*255.0)/256.0;
+	vec4 tuy = round(texture( uyTex, UV)*255.0)/256.0;
+    
+    float  fsmooth = RGBA2Float(tsmooth)*256.0;
+    float  fedge = RGBA2Float(tedge)*256.0/1000.0;
+	float  fLF = RGBA2Float(tLF)*256.0;
+	float  fuy = RGBA2Float(tuy)*256.0;
+
+	float combined = (wgtSmooth*fsmooth + wgtLF*(1.0-fedge)*fLF) / (wgtSmooth + wgtLF*(1.0-fedge) )+1.0*fuy*fedge;
+	
+	color =  Float2RGBA(combined/256.0);
+	//color =  Float2RGBA(fsmooth/256.0);
+	
+}

@@ -1,0 +1,46 @@
+#version 300 es
+precision highp float;
+
+layout(location = 0) in vec3 vertexPosition_modelspace;
+layout(location = 1) in vec2 vertexUV;
+
+  
+uniform float texelWidth; 
+uniform float texelHeight; 
+uniform float convLateral; //convLateral & convAxial are switches to toggle between axial or lateral conv. 
+uniform float convAxial;
+
+out vec2 kernelCoordinate_0;
+out vec2 kernelCoordinate_1;
+out vec2 kernelCoordinate_2;
+out vec2 kernelCoordinate_3;
+out vec2 kernelCoordinate_4;
+out vec2 kernelCoordinate_5;
+out vec2 kernelCoordinate_6;
+out vec2 kernelCoordinate_7;
+out vec2 kernelCoordinate_8;
+
+void main(){
+
+//gl_Position.xyz = vertexPosition_modelspace;
+gl_Position = vec4(vertexPosition_modelspace,1);
+
+vec2 widthStep = vec2(texelWidth, 0.0);
+vec2 heightStep = vec2(0.0, texelHeight);
+vec2 widthStep2 = vec2(2.0*texelWidth, 0.0);
+vec2 heightStep2 = vec2(0.0, 2.0*texelHeight);
+vec2 widthStep3 = vec2(3.0*texelWidth, 0.0);
+vec2 heightStep3 = vec2(0.0, 3.0*texelHeight);
+vec2 widthStep4 = vec2(4.0*texelWidth, 0.0);
+vec2 heightStep4 = vec2(0.0, 4.0*texelHeight);
+	
+kernelCoordinate_0 = vertexUV.xy - convLateral*widthStep4 - convAxial*heightStep4;
+kernelCoordinate_1 = vertexUV.xy - convLateral*widthStep3 - convAxial*heightStep3; 	
+kernelCoordinate_2 = vertexUV.xy - convLateral*widthStep2 - convAxial*heightStep2; 
+kernelCoordinate_3 = vertexUV.xy - convLateral*widthStep - convAxial*heightStep; 
+kernelCoordinate_4 = vertexUV;
+kernelCoordinate_5 = vertexUV.xy + convLateral*widthStep + convAxial*heightStep; 
+kernelCoordinate_6 = vertexUV.xy + convLateral*widthStep2 + convAxial*heightStep2; 
+kernelCoordinate_7 = vertexUV.xy + convLateral*widthStep3 + convAxial*heightStep3;
+kernelCoordinate_8 = vertexUV.xy + convLateral*widthStep4 + convAxial*heightStep4;
+}

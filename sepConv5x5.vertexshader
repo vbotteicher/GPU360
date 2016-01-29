@@ -1,0 +1,34 @@
+#version 300 es
+precision highp float;
+
+layout(location = 0) in vec3 vertexPosition_modelspace;
+layout(location = 1) in vec2 vertexUV;
+
+  
+uniform float texelWidth; 
+uniform float texelHeight; 
+uniform float convLateral; //convLateral & convAxial are switches to toggle between axial or lateral conv. 
+uniform float convAxial;
+
+out vec2 kernelCoordinate_0;
+out vec2 kernelCoordinate_1;
+out vec2 kernelCoordinate_2;
+out vec2 kernelCoordinate_3;
+out vec2 kernelCoordinate_4;
+
+void main(){
+
+//gl_Position.xyz = vertexPosition_modelspace;
+gl_Position = vec4(vertexPosition_modelspace,1);
+
+vec2 widthStep = vec2(texelWidth, 0.0);
+vec2 heightStep = vec2(0.0, texelHeight);
+vec2 widthStep2 = vec2(2.0*texelWidth, 0.0);
+vec2 heightStep2 = vec2(0.0, 2.0*texelHeight);
+	
+kernelCoordinate_0 = vertexUV.xy - convLateral*widthStep2 - convAxial*heightStep2; 
+kernelCoordinate_1 = vertexUV.xy - convLateral*widthStep - convAxial*heightStep; 
+kernelCoordinate_2 = vertexUV;
+kernelCoordinate_3 = vertexUV.xy + convLateral*widthStep + convAxial*heightStep; 
+kernelCoordinate_4 = vertexUV.xy + convLateral*widthStep2 + convAxial*heightStep2; 
+}

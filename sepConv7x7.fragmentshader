@@ -1,0 +1,76 @@
+#version 300 es
+precision highp float;
+
+uniform highp float maxF;
+uniform highp float minF;
+
+in vec2 kernelCoordinate_0;
+in vec2 kernelCoordinate_1;
+in vec2 kernelCoordinate_2;
+in vec2 kernelCoordinate_3;
+in vec2 kernelCoordinate_4;
+in vec2 kernelCoordinate_5;
+in vec2 kernelCoordinate_6;
+
+uniform sampler2D myTextureSampler;
+
+uniform float convKernel_0;
+uniform float convKernel_1;
+uniform float convKernel_2;
+uniform float convKernel_3;
+uniform float convKernel_4;
+uniform float convKernel_5;
+uniform float convKernel_6;
+
+const vec4 bitShInv = vec4( 1.0 / (256.0 * 256.0 * 256.0), 1.0 / (256.0 * 256.0), 1.0 / 256.0, 1.0); 
+const vec4 bitSh = vec4( 256.0 * 256.0 * 256.0, 256.0 * 256.0, 256.0, 1.0 );
+const vec4 bitMsk = vec4( 0.0, 1.0 / 256.0, 1.0 / 256.0, 1.0 / 256.0 );
+
+vec4 Float2RGBA(float f)
+{
+
+   f = ( f - minF ) / ( maxF - minF ) ;
+   vec4 res = bitSh * f;
+   res = fract( res );   
+   res -= res.xxyz * bitMsk;
+   //res.x -= res.x*bitMsk.x;
+   //res.y -= res.x*bitMsk.y;
+   //res.z -= res.y*bitMsk.z;
+   //res.w -= res.z*bitMsk.w;
+
+   return( res );
+} 
+
+float RGBA2Float( vec4 v ) //must call this to do computations
+{
+	float f = dot(v, bitShInv);
+	f = f * (maxF - minF) + minF;
+	return(f);
+}
+
+layout(location = 0) out vec4 color;
+
+void main()
+{
+	//note vec4 for RGBA format
+	vec4 textureValue_0 = texture( myTextureSampler, kernelCoordinate_0);
+	vec4 textureValue_1 = texture( myTextureSampler, kernelCoordinate_1);
+	vec4 textureValue_2 = texture( myTextureSampler, kernelCoordinate_2);
+	vec4 textureValue_3 = texture( myTextureSampler, kernelCoordinate_3);
+	vec4 textureValue_4 = texture( myTextureSampler, kernelCoordinate_4);
+	vec4 textureValue_5 = texture( myTextureSampler, kernelCoordinate_5);
+	vec4 textureValue_6 = texture( myTextureSampler, kernelCoordinate_6);
+
+    float  f0 = RGBA2Float( textureValue_0 );
+	float  f1 = RGBA2Float( textureValue_1 );
+	float  f2 = RGBA2Float( textureValue_2 );
+	float  f3 = RGBA2Float( textureValue_3 );
+	float  f4 = RGBA2Float( textureValue_4 );
+	float  f5 = RGBA2Float( textureValue_5 );
+	float  f6 = RGBA2Float( textureValue_6 );
+	
+	float f7 = f0*convKernel_0 + f1*convKernel_1 + f2*convKernel_2 + f3*convKernel_3
+	 + f4*convKernel_4 + f5*convKernel_5 + f6*convKernel_6;
+
+	color =  Float2RGBA( f7 );
+}

@@ -1,0 +1,18 @@
+#version 300 es
+precision highp float;
+
+in vec4 UV;
+uniform sampler2D myTextureSampler;
+
+uniform highp float maxF;
+uniform highp float minF;
+
+
+layout(location = 0) out vec4 color;
+void main()
+{
+	vec4 texel = textureProj( myTextureSampler, UV);
+	//vec4 texel = texture( myTextureSampler, UV);
+	color = texel;
+	
+}

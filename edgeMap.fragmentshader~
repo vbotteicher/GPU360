@@ -1,0 +1,59 @@
+#version 300 es
+precision highp float;
+
+
+uniform sampler2D uxTextureSampler;
+uniform sampler2D uyTextureSampler;
+
+uniform highp float maxF;
+uniform highp float minF;
+
+in highp vec2 UV;
+
+const highp vec4 bitShInv = vec4( 1.0 / (256.0 * 256.0 * 256.0), 1.0 / (256.0 * 256.0), 1.0 / 256.0, 1.0); 
+const highp vec4 bitSh = vec4( 256.0 * 256.0 * 256.0, 256.0 * 256.0, 256.0, 1.0 );
+const highp vec4 bitMsk = vec4( 0.0, 1.0 / 256.0, 1.0 / 256.0, 1.0 / 256.0 );
+
+vec4 Float2RGBA(float f)
+{
+   //f = (254.0/254.1211)*(f - floor(f/0.125)*0.125/255.0);
+   f = ( f - minF ) / ( maxF - minF ) ;
+   highp vec4 res = bitSh * f;
+   res = fract( res );   
+   res -= res.xxyz * bitMsk;
+   //res.x -= res.x*bitMsk.x;
+   //res.y -= res.x*bitMsk.y;
+   //res.z -= res.y*bitMsk.z;
+   //res.w -= res.z*bitMsk.w;
+
+   return( res );
+} 
+
+float RGBA2Float( vec4 v ) //must call this to do computations
+{
+	float f = dot(v, bitShInv);
+	f = f * (maxF - minF) + minF;
+	return(f);
+}
+
+layout(location = 0) out vec4 color;
+
+void main()
+{   
+	vec4 tuy = round(texture( uyTextureSampler, UV)*255.0)/256.0;
+	vec4 tux = round(texture( uxTextureSampler, UV)*255.0)/256.0;
+	float fuy = 255.0*RGBA2Float(tuy);//This value is 256 times smaller than in the matlab version, so to keep them the same multiply by 256 before nonlinear operations, then divide back 
+	                                  
+	float fux = 255.0*RGBA2Float(tux);
+	
+	float fJyy = fuy*fuy;
+	float fJxx = fux*fux;
+	float fJxy = fuy*fux;
+	
+	float fOut = sqrt(pow(fJxx-fJyy,2.0) + 4.0*pow(fJxy,2.0));
+	float f3 = clamp( fOut/(255.0*8.0), minF, maxF);
+	color = clamp(Float2RGBA( f3 ),0.0, 1.0 );
+	//color = round( 255.0 * color ) / 258.0;
+	//	float temp = RGBA2Float(color);
+	
+}

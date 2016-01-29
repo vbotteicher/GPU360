@@ -1,0 +1,28 @@
+function [out] = VonSC(u,NX,NZ)
+
+pivot=4.0981e-3;
+B=56.0941;
+dead=310;
+fs=25e6;%sampling frequency
+MAXDEPTH=512;
+ 
+scsamp=2.4640e-04;
+%NX=520; %output dim's
+%NZ=480;
+ZI = dead/fs*1540/2+(0:NZ-1)*scsamp*512/NZ;
+XI= ((NX-1)/2.:-1:-(NX-1)/2)*scsamp*512/NZ;
+Z = (0:MAXDEPTH-1)*scsamp+dead/fs/2*1540;
+ZI = ZI + pivot;
+Z = Z+pivot;
+
+th = -B/2:B/127:B/2;
+
+for x = 1:size(XI,2)
+    for y = 1:size(ZI,2)
+        theta(x,y) = atan(XI(x)/ZI(y))*180/pi;
+        r(x,y) = sqrt(XI(x)^2+ZI(y)^2);
+    end
+end
+out = fliplr(interp2(repmat(th,[512 1]),repmat(Z,[128 1])',u,theta',r','nearest',0));
+
+end

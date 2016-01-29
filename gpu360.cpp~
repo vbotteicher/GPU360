@@ -9,6 +9,7 @@ extern "C"{
 #include <stdlib.h>
 #include "gpu360.h"
 #include <GLES3/gl3.h>
+#include <vector>
 
 
         
@@ -57,137 +58,246 @@ void GPU360::setupEGL(void) {
         EGL_NONE
     };
 
-        const EGLint surfaceAttr[] = {
-            EGL_RENDER_BUFFER, EGL_BACK_BUFFER,
-             //EGL_WIDTH, w,
-             //EGL_HEIGHT, h,
-             EGL_NONE
-        };
-        NativeWindowType native_window;
-        EGLint num_config=0;
+    const EGLint surfaceAttr[] = {
+        EGL_RENDER_BUFFER, EGL_BACK_BUFFER,
+         //EGL_WIDTH, w,
+         //EGL_HEIGHT, h,
+         EGL_NONE
+    };
+    NativeWindowType native_window;
+    EGLint num_config=0;
+    
+    EGLNativeDisplayType hDisplayType = fbGetDisplayByIndex(0);
+      
+    signal(SIGSEGV, handler);   // install our handler
+    if(!hDisplayType){
+        printf("get display failed\n");
+    }
+    /* create a native window */
+    printf("mark0\n");
+    
+    /* get an EGL display connection */
+    printf("mark1\n");
+    display = eglGetDisplay(hDisplayType);
+    checkErr();
+    printf("mark2\n");
+    if(display==EGL_NO_DISPLAY){
+        printf("no display\n");
+    }
+    /* initialize the EGL display connection */
+    if(!eglInitialize(display, NULL, NULL)){
+        printf("initialization failed\n");
+    }
+    checkErr();
+    eglBindAPI(EGL_OPENGL_ES_API);
+    /* get an appropriate EGL frame buffer configuration */
+    if(!eglChooseConfig(display, attribute_list, &config, 1, &num_config)){
+        printf("choose config failed failed\n");
+    }
+    checkErr();
+    printf("num_config=%d\n", num_config);
+    // Get the native visual id that matches the egl config
+    EGLint nativeVisualId;
+    eglGetConfigAttrib(display, config, EGL_NATIVE_VISUAL_ID, &nativeVisualId);
+    checkErr();
+    int windowWidth, windowHeight, windowX, windowY;
+    fbGetDisplayGeometry(hDisplayType, &windowWidth, &windowHeight);
+    windowX = 0;
+    windowY = 0;
+    //windowWidth = 128;
+    //windowHeight = 128;
         
-        EGLNativeDisplayType hDisplayType = fbGetDisplayByIndex(0);
-        
-        signal(SIGSEGV, handler);   // install our handler
-        if(!hDisplayType){
-            printf("get display failed\n");
-        }
-        /* create a native window */
-        printf("mark0\n");
-        
-        /* get an EGL display connection */
-        printf("mark1\n");
-        display = eglGetDisplay(hDisplayType);
-        checkErr();
-        printf("mark2\n");
-        if(display==EGL_NO_DISPLAY){
-            printf("no display\n");
-        }
-        /* initialize the EGL display connection */
-        if(!eglInitialize(display, NULL, NULL)){
-            printf("initialization failed\n");
-        }
-        checkErr();
-        eglBindAPI(EGL_OPENGL_ES_API);
-        /* get an appropriate EGL frame buffer configuration */
-        if(!eglChooseConfig(display, attribute_list, &config, 1, &num_config)){
-            printf("choose config failed failed\n");
-        }
-        checkErr();
-        printf("num_config=%d\n", num_config);
-         // Get the native visual id that matches the egl config
-        EGLint nativeVisualId;
-        eglGetConfigAttrib(display, config, EGL_NATIVE_VISUAL_ID, &nativeVisualId);
-        checkErr();
-        int windowWidth, windowHeight, windowX, windowY;
-        fbGetDisplayGeometry(hDisplayType, &windowWidth, &windowHeight);
-        windowX = 0;
-        windowY = 0;
-        //windowWidth = 128;
-        //windowHeight = 128;
-        
-        native_window = fbCreateWindow(hDisplayType, windowX, windowY, windowWidth, windowHeight);
-        //printf("windowWidth = %i,\n windowHeight = %i,\n",windowWidth,windowHeight);
-        if(!native_window){
-            printf("fbCreateWindow failed\n");
-        }
-        printf("mark3, native_window=0x%x\n", (unsigned int)native_window);
-        /* create an EGL window surface */
-        surface = eglCreateWindowSurface(display, config, native_window, surfaceAttr);
-        checkErr();
-        printf("surface=0x%x, EGL_NO_SURFACE=0x%p\n",(unsigned int)native_window,EGL_NO_SURFACE);
-          /* create an EGL rendering context */
-        EGLint ctxattr[] = { 
+    native_window = fbCreateWindow(hDisplayType, windowX, windowY, windowWidth, windowHeight);
+    //printf("windowWidth = %i,\n windowHeight = %i,\n",windowWidth,windowHeight);
+    if(!native_window){
+        printf("fbCreateWindow failed\n");
+    }
+    printf("mark3, native_window=0x%x\n", (unsigned int)native_window);
+    /* create an EGL window surface */
+    surface = eglCreateWindowSurface(display, config, native_window, surfaceAttr);
+    checkErr();
+    printf("surface=0x%x, EGL_NO_SURFACE=0x%p\n",(unsigned int) native_window, EGL_NO_SURFACE);
+    /* create an EGL rendering context */
+    EGLint ctxattr[] = { 
         EGL_CONTEXT_CLIENT_VERSION, 3,
         EGL_NONE
-        };
-        context = eglCreateContext(display, config, EGL_NO_CONTEXT, ctxattr);
-        printf("context=0x%x\n", (unsigned int)context);
-        /* connect the context to the surface */
-        if(!eglMakeCurrent(display, surface, surface, context)){
-            printf("make current failed\n");
-        }
-        checkErr();
-       
-        }
+    };
+    context = eglCreateContext(display, config, EGL_NO_CONTEXT, ctxattr);
+    printf("context=0x%x\n", (unsigned int)context);
+    /* connect the context to the surface */
+    if(!eglMakeCurrent(display, surface, surface, context)){
+        printf("make current failed\n");
+    }
+    checkErr();
+     
+    }
 
 void GPU360::setupTextureAndFBO(void) {
     printf("Setting up Textures and FBOs\n");
-    // Create one OpenGL texture
+    
+   //////   Luminance Textures //////////
 
-glGenTextures(1, &readTextureID);
+    /*glGenTextures(1, &readTextureID);
+glActiveTexture(GL_TEXTURE0);
+    // "Bind" the newly created texture : all future texture functions will 
+    // modify this texture
+    glBindTexture(GL_TEXTURE_2D, readTextureID);
 
-// "Bind" the newly created texture : all future texture functions will modify this texture
-glBindTexture(GL_TEXTURE_2D, readTextureID);
+    // Give the image to OpenGL
+    glTexImage2D(GL_TEXTURE_2D, 0,GL_LUMINANCE, 128, 512, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, 0);
 
-// Give the image to OpenGL
-glTexImage2D(GL_TEXTURE_2D, 0,GL_LUMINANCE, 128, 512, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, 0);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);*/  
+    
+     //////   Float Texture //////////
+   
+     glGenTextures(1, &floatTextureID);
+     glActiveTexture(GL_TEXTURE0);
+    // "Bind" the newly created texture : all future texture functions will modify this texture
+    glBindTexture(GL_TEXTURE_2D, floatTextureID);
+    // Give the image to OpenGL
+    glTexImage2D(GL_TEXTURE_2D, 0,GL_R32F, 128, 128, 0, GL_RED, GL_FLOAT,  0);
 
-glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);  
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 
+    //////   RGBA Textures //////////
+   
+    glGenTextures(5, &processTextureID[0]);
+    
+    glActiveTexture(GL_TEXTURE0+1);
+    glBindTexture(GL_TEXTURE_2D, processTextureID[0]);
 
-glGenTextures(2, &processTextureID[0]);
-glActiveTexture(GL_TEXTURE0+1);
-// "Bind" the newly created texture : all future texture functions will modify this texture
-glBindTexture(GL_TEXTURE_2D, processTextureID[0]);
-// Give the image to OpenGL
-glTexImage2D(GL_TEXTURE_2D, 0,GL_RGBA, 128, 512, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
+    glTexImage2D(GL_TEXTURE_2D, 0,GL_RGBA, TEXTURE_WIDTH, TEXTURE_HEIGHT, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
 
-glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
  
-glActiveTexture(GL_TEXTURE0+2);
-// "Bind" the newly created texture : all future texture functions will modify this texture
-glBindTexture(GL_TEXTURE_2D, processTextureID[1]);
-// Give the image to OpenGL
-glTexImage2D(GL_TEXTURE_2D, 0,GL_RGBA, 128, 512, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
+    glActiveTexture(GL_TEXTURE0+2);
+    // "Bind" the newly created texture : all future texture functions will modify this texture
+    glBindTexture(GL_TEXTURE_2D, processTextureID[1]);
+    // Give the image to OpenGL
+    glTexImage2D(GL_TEXTURE_2D, 0,GL_RGBA, TEXTURE_WIDTH, TEXTURE_HEIGHT, 0, GL_RGBA, GL_UNSIGNED_BYTE,  0);
 
-glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    
+    glActiveTexture(GL_TEXTURE0+3);
+    // "Bind" the newly created texture : all future texture functions will modify this texture
+    glBindTexture(GL_TEXTURE_2D, processTextureID[2]);
+    // Give the image to OpenGL
+    glTexImage2D(GL_TEXTURE_2D, 0,GL_RGBA, TEXTURE_WIDTH, TEXTURE_HEIGHT, 0, GL_RGBA, GL_UNSIGNED_BYTE,  0);
 
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    
+    glActiveTexture(GL_TEXTURE0+4);
+    // "Bind" the newly created texture : all future texture functions will modify this texture
+    glBindTexture(GL_TEXTURE_2D, processTextureID[3]);
+    // Give the image to OpenGL
+    glTexImage2D(GL_TEXTURE_2D, 0,GL_RGBA, TEXTURE_WIDTH, TEXTURE_HEIGHT, 0, GL_RGBA, GL_UNSIGNED_BYTE,  0);
 
-glGenFramebuffers(2, &FramebufferName[0]);
-glBindFramebuffer(GL_FRAMEBUFFER, FramebufferName[0]);    
-// Set "renderedTexture" as our colour attachement #0
-glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D, processTextureID[0], 0);
-glBindFramebuffer(GL_FRAMEBUFFER, FramebufferName[1]); 
-glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D, processTextureID[1], 0);
- //GLenum DrawBuffers[1] = {GL_COLOR_ATTACHMENT0};
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    
+    glActiveTexture(GL_TEXTURE0+5);
+    // "Bind" the newly created texture : all future texture functions will modify this texture
+    glBindTexture(GL_TEXTURE_2D, processTextureID[4]);
+    // Give the image to OpenGL
+    glTexImage2D(GL_TEXTURE_2D, 0,GL_RGBA, TEXTURE_WIDTH, TEXTURE_HEIGHT, 0, GL_RGBA, GL_UNSIGNED_BYTE,  0);
 
- //glDrawBuffers(1, DrawBuffers);
-//glClear(GL_COLOR_BUFFER_BIT);
-printf("ay. GPU ERROR: %i\n", glGetError());
-GLuint FBOstatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-if(FBOstatus != GL_FRAMEBUFFER_COMPLETE)
-            printf("FrameBuffer not ok %i\n",FBOstatus);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    
+    ///////////  RGBA Downsampled Textures  ////////////
+    
+    glGenTextures(5, &downSampleTextureID[0]);
+    
+    glActiveTexture(GL_TEXTURE0+6);
+    // "Bind" the newly created texture : all future texture functions will modify this texture
+    glBindTexture(GL_TEXTURE_2D, downSampleTextureID[0]);
+    // Give the image to OpenGL
+    glTexImage2D(GL_TEXTURE_2D, 0,GL_RGBA, TEXTURE_WIDTH/2, TEXTURE_HEIGHT/2, 0, GL_RGBA, GL_UNSIGNED_BYTE,  0);
 
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    
+    glActiveTexture(GL_TEXTURE0+7);
+    // "Bind" the newly created texture : all future texture functions will modify this texture
+    glBindTexture(GL_TEXTURE_2D, downSampleTextureID[1]);
+    // Give the image to OpenGL
+    glTexImage2D(GL_TEXTURE_2D, 0,GL_RGBA, TEXTURE_WIDTH/2, TEXTURE_HEIGHT/2, 0, GL_RGBA, GL_UNSIGNED_BYTE,  0);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    
+    glActiveTexture(GL_TEXTURE0+8);
+    // "Bind" the newly created texture : all future texture functions will modify this texture
+    glBindTexture(GL_TEXTURE_2D, downSampleTextureID[2]);
+    // Give the image to OpenGL
+    glTexImage2D(GL_TEXTURE_2D, 0,GL_RGBA, TEXTURE_WIDTH/2, TEXTURE_HEIGHT/2, 0, GL_RGBA, GL_UNSIGNED_BYTE,  0);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    
+    glActiveTexture(GL_TEXTURE0+9);
+    // "Bind" the newly created texture : all future texture functions will modify this texture
+    glBindTexture(GL_TEXTURE_2D, downSampleTextureID[3]);
+    // Give the image to OpenGL
+    glTexImage2D(GL_TEXTURE_2D, 0,GL_RGBA, TEXTURE_WIDTH/2, TEXTURE_HEIGHT/2, 0, GL_RGBA, GL_UNSIGNED_BYTE,  0);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    
+    glActiveTexture(GL_TEXTURE0+10);
+    // "Bind" the newly created texture : all future texture functions will modify this texture
+    glBindTexture(GL_TEXTURE_2D, downSampleTextureID[4]);
+    // Give the image to OpenGL
+    glTexImage2D(GL_TEXTURE_2D, 0,GL_RGBA, TEXTURE_WIDTH/2, TEXTURE_HEIGHT/2, 0, GL_RGBA, GL_UNSIGNED_BYTE,  0);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    
+    ///////////  Create FBO's     //////////////////////
+
+    glGenFramebuffers(2, &FramebufferName[0]);
+    glBindFramebuffer(GL_FRAMEBUFFER, FramebufferName[0]);    
+    // Set "renderedTexture" as our colour attachement #0
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D,  processTextureID[0], 0);
+    glBindFramebuffer(GL_FRAMEBUFFER, FramebufferName[1]); 
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D,  processTextureID[1], 0);
+    //GLenum DrawBuffers[1] = {GL_COLOR_ATTACHMENT0};
+
+    //glDrawBuffers(1, DrawBuffers);
+    //glClear(GL_COLOR_BUFFER_BIT);
+
+    GLuint FBOstatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    if(FBOstatus != GL_FRAMEBUFFER_COMPLETE)
+        printf("FrameBuffer not ok %i\n",FBOstatus);
 }
 
 void GPU360::setupVertexBuffers(void) {
@@ -225,27 +335,67 @@ void GPU360::setupVertexBuffers(void) {
    g_uv_buffer_data[10] =1.0f; g_uv_buffer_data[11] =1.0f;
    
  
-// Generate 1 buffer, put the resulting identifier in vertexbuffer
-glGenBuffers(1, &vertexbuffer);
+    // Generate 1 buffer, put the resulting identifier in vertexbuffer
+    glGenBuffers(1, &vertexbuffer);
 
-glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
-glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data, GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data),     g_vertex_buffer_data, GL_STATIC_DRAW);
 
-glGenBuffers(1, &uvbuffer);
-glBindBuffer(GL_ARRAY_BUFFER, uvbuffer);
-glBufferData(GL_ARRAY_BUFFER, sizeof(g_uv_buffer_data), g_uv_buffer_data, GL_STATIC_DRAW);
-}
+    glGenBuffers(1, &uvbuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, uvbuffer);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(g_uv_buffer_data), g_uv_buffer_data,   GL_STATIC_DRAW);
+    }
 
-void GPU360::setupWork(GLuint inputTex,GLuint outputTex, const char * vert,const char * frag)
+/*void GPU360::addWorkItem(GLuint inputTex,GLuint outputTex, const char * vert,const char * frag, int progType)
 {   
+  float kernel3x3[3] = {0.33F, 0.33F, 0.33F};
+    //workArray[workSize] = new Work(inputTex, outputTex, vert, frag, progType);
+    switch (progType){ 
+    case 0 :
+    workVector.push_back(new RGBAPackWork(inputTex, outputTex, vert, frag, progType));
+    break;
+    case 1 :
+    
+    workVector.push_back(new Sep3x3AxWork(inputTex, outputTex, vert, frag, progType, kernel3x3));
+    break;
+    case 2 :
+    
+    workVector.push_back(new Sep3x3LatWork(inputTex, outputTex, vert, frag, progType, kernel3x3));
+    break;
+    case 3 :
+    workVector.push_back(new RGBAUnpackWork(inputTex, outputTex, vert, frag, progType));
+    break;
+    }
    
-    packWork = new Work(inputTex,outputTex,vert,frag);
-    packWork->Draw(FramebufferName[0],vertexbuffer,uvbuffer);
+    workSize++;
+    
+}*/
+
+void GPU360::addWorkItem(Work * work){
+    workVector.push_back(work);
+    workSize++;
 }
+
+void GPU360::draw()
+{   
+    std::vector<Work*>::const_iterator i;
+    int n = 0;
+    for(i = workVector.begin(); i!= workVector.end(); ++i){
+        (*i)->Draw(FramebufferName[FBflipflop],vertexbuffer,uvbuffer);
+        //printf("FBflipflop = %d",FBflipflop);
+        FBflipflop = FBflipflop^1;
+          
+    }
+    //for (int i = 0; i<workSize;i++)
+    //workArray[i]-> Draw(FramebufferName[i],vertexbuffer,uvbuffer);
+}
+
 
 GPU360::GPU360(void)
 {   printf("GPU constructor\n");
     setupEGL();
+    workSize = 0;
+    FBflipflop = 0;
 }
 
 GPU360::~GPU360()

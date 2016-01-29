@@ -1,0 +1,12 @@
+#include <GLES3/gl3.h>
+#include "work.h"
+
+class BlendImageWork : public Work
+{
+public:
+    BlendImageWork(GLuint inputTex, GLuint outputTex, const char * vert,const char * frag, GLuint inputTex2);
+    void Draw(GLuint framebuffer,GLuint vertexbuffer,GLuint uvbuffer);
+    GLuint edgeMapTexture;
+    GLuint LFTexture;
+    GLuint uyTexture;
+};

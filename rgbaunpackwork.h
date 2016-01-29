@@ -1,0 +1,9 @@
+#include <GLES3/gl3.h>
+#include "work.h"
+
+class RGBAUnpackWork : public Work
+{
+public:
+    RGBAUnpackWork(GLuint inputTex, GLuint outputTex, const char * vert,const char * frag);
+    void Draw(GLuint framebuffer,GLuint vertexbuffer,GLuint uvbuffer);
+};
